@@ -51,6 +51,72 @@ class NormReduction:
 
 ReductionOpType = Union[NormReduction, str]
 
+@dataclass(frozen=True)
+class _PowerSumPartial(Partial):
+    """
+    This placement is used for partial power sum.
+    """
+
+    power_type: Union[int, float] = 2
+
+    def __post_init__(self):
+        """Set the appropriate reduce op based on the no type."""
+        # Use `object.__setattr__` to bypass frozen checks
+            object.__setattr__(self, "reduce_op", "sum")
+
+    def _partition_value(
+        self, tensor: torch.Tensor, mesh: DeviceMesh, mesh_dim: int
+    ) -> torch.Tensor:
+        """
+        Partials are just per-rank power sums.
+        """
+        if self.reduce_op == "sum":
+            if self.power_type == 0:
+                raise NotImplementedError(f"Unsupported norm type:: {self.power_type}")
+            elif self.power_type == 1:
+                return tensor / mesh.size(mesh_dim)
+            return tensor / math.pow(mesh.size(mesh_dim), 1 / self.norm_type)
+        raise NotImplementedError(self.reduce_op)
+
+    def _reduce_shard_value(
+        self,
+        tensor: torch.Tensor,
+        mesh: DeviceMesh,
+        mesh_dim: int,
+        shard_spec: Placement,
+    ) -> torch.Tensor:
+        assert isinstance(shard_spec, Shard), f"{shard_spec}"
+        tensor = self._pre_reduce_transform(tensor)
+        reduced_tensor = super()._reduce_shard_value(tensor, mesh, mesh_dim, shard_spec)
+        return self._post_reduce_transform(reduced_tensor)
+
+    def _reduce_value(
+        self, tensor: torch.Tensor, mesh: DeviceMesh, mesh_dim: int
+    ) -> torch.Tensor:
+        tensor = self._pre_reduce_transform(tensor)
+        reduced_tensor = super()._reduce_value(tensor, mesh, mesh_dim)
+        return self._post_reduce_transform(reduced_tensor)
+
+    def _pre_reduce_transform(self, tensor: torch.Tensor) -> torch.Tensor:
+        if self.reduce_op == "sum":
+            if self.power_type != 0 and self.power_type != 1:
+                return tensor**self.norm_type
+        return tensor
+
+    def _post_reduce_transform(self, tensor: torch.Tensor) -> torch.Tensor:
+        if self.reduce_op == "sum":
+            if self.power_type != 0 and self.power_type != 1:
+                return tensor ** (1.0 / self.power_type)
+        return tensor
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, _PowerSumPartial):
+            return False
+        return self.power_type == other.power_type
+
+    def __hash__(self) -> int:
+        return 1 + hash(self.power_type)
+
 
 @dataclass(frozen=True)
 class _NormPartial(Partial):
