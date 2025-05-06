@@ -333,7 +333,7 @@ def common_reduction_strategy(
     # by default follow reduction input strategy
     reduction_strategy = OpStrategy([])
 
-    for strtg in input_strategy.strategies:
+    for i, strtg in enumerate(input_strategy.strategies):
         if not reduction_linear:
             # input placements for this strategy should clear out pending sum and sharding
             # on the reduction dimension
@@ -342,17 +342,17 @@ def common_reduction_strategy(
             )
         else:
             input_placements = strtg.output_spec.placements
-
+        print("In:", i, input_placements)
         input_spec = DTensorSpec(
             mesh=input_strategy.mesh,
             placements=input_placements,
             tensor_meta=strtg.output_spec.tensor_meta,
         )
-
         reduce_dims_map = _infer_reduce_dims_map(reduce_dims, input_spec.ndim, keep_dim)
         out_placements = map_placements_after_reduction(
             input_spec.placements, reduce_dims, reduce_dims_map, reduction_op
         )
+        print("Out:", i, out_placements)
         redistribute_cost = [generate_redistribute_costs(input_strategy, input_spec)]
         reduction_strategy.strategies.append(
             PlacementStrategy(
