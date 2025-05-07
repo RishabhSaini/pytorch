@@ -156,6 +156,7 @@ class OpDispatcher:
         # extract local tensor and sharding infos to a OpInfo
         op_info = self.unwrap_to_op_info(op_call, args, kwargs)
         logger.debug("Dispatching op_call: %s", op_info.schema)
+        print(op_info)
 
         self.sharding_propagator.propagate(op_info)
         output_sharding = op_info.output_sharding
@@ -204,6 +205,7 @@ class OpDispatcher:
                     local_results = op_call(*local_tensor_args, **op_info.local_kwargs)
             else:
                 # normal case, run local sharded op computation
+                print("Standard op comp", op_call.name())
                 local_results = op_call(*local_tensor_args, **op_info.local_kwargs)
 
         else:
@@ -292,6 +294,7 @@ class OpDispatcher:
         op_info: OpInfo,
         suggested_input_schema: OpSchema,
     ) -> None:
+        #print(op_info)
         # NOTE: it's very rare that we need to reshard kwargs so we intentionally skip it
         if op_info.args_tree_spec is not None:
             flatten_args_schema_to_reshard = tuple(

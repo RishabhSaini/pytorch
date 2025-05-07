@@ -94,12 +94,15 @@ def _get_total_norm(
                 f"foreach=True was passed, but can't use the foreach API on {device.type} tensors"
             )
         else:
-            norms.extend(
-                [torch.linalg.vector_norm(g, norm_type, dtype=torch.float64) for g in device_tensors]
-            )
+            if norm_type not in (float("inf"), "inf", float("-inf"), "-inf", 0, 1):
+                norms.extend([torch.sum(g**norm_type) for g in device_tensors])
+            else:
+                norms.extend(
+                    [torch.linalg.vector_norm(g, norm_type) for g in device_tensors]
+                )
 
     total_norm = torch.linalg.vector_norm(
-        torch.stack([norm.to(first_device) for norm in norms]), norm_type, dtype=torch.float64
+        torch.stack([norm.to(first_device) for norm in norms]), norm_type
     )
 
     if error_if_nonfinite and torch.logical_or(total_norm.isnan(), total_norm.isinf()):

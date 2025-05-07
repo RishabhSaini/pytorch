@@ -62,7 +62,7 @@ class _PowerSumPartial(Partial):
     def __post_init__(self):
         """Set the appropriate reduce op based on the no type."""
         # Use `object.__setattr__` to bypass frozen checks
-            object.__setattr__(self, "reduce_op", "sum")
+        object.__setattr__(self, "reduce_op", "sum")
 
     def _partition_value(
         self, tensor: torch.Tensor, mesh: DeviceMesh, mesh_dim: int
@@ -188,6 +188,7 @@ class _NormPartial(Partial):
     def _reduce_value(
         self, tensor: torch.Tensor, mesh: DeviceMesh, mesh_dim: int
     ) -> torch.Tensor:
+        print("_reduce_value:",tensor)
         tensor = self._pre_reduce_transform(tensor)
         reduced_tensor = super()._reduce_value(tensor, mesh, mesh_dim)
         return self._post_reduce_transform(reduced_tensor)
@@ -467,6 +468,7 @@ def vector_norm_strategy(op_schema: OpSchema) -> OpStrategy:
     keepdim = args_schema[3] if len(args_schema) > 3 else False
     dims = _infer_reduction_dims(dim, input_strategy.ndim)
     reduce_dims = list(range(input_strategy.ndim)) if dims is None else dims
+    print(input_strategy)
     return common_reduction_strategy(
         input_strategy,
         reduce_dims,
